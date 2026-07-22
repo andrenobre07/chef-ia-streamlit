@@ -11,7 +11,7 @@ st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
 # Barra Lateral (Sidebar) com informação do projeto
 with st.sidebar:
-    st.header("👥 Grupo de Trabalho")
+    st.header("👥 Grupo de Trabalho 👥")
     st.write("• **André Nobre**")
     st.write("• **Diogo Ramiro**")
     st.write("• **Rodrigo Gomes**")
