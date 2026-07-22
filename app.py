@@ -3,20 +3,33 @@ import google.generativeai as genai
 
 # 1. Configurar a interface visual
 st.set_page_config(page_title="Chef IA", page_icon="👨‍🍳")
+
+# Título Principal e Membros do Grupo
 st.title("👨‍🍳 Chef IA - O teu Assistente de Cozinha")
+st.caption("Trabalho desenvolvido por: **André Nobre**, **Diogo Ramiro** e **Rodrigo Gomes**")
 st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
-# 2. Configurar a API (Funciona localmente e na Nuvem/Streamlit Cloud)
-try:
-    # Tenta ir buscar a chave aos Secrets do Streamlit Cloud
-    CHAVE_API = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    # Se estiveres a correr no teu PC, usa a tua chave diretamente
-    CHAVE_API = "AQ.Ab8RN6LCk1yDfpkkX5VrcebcQd0rRWMO_T4XTMUalh08B-QrHg"
+# Barra Lateral (Sidebar) com informação do projeto
+with st.sidebar:
+    st.header("👥 Grupo de Trabalho")
+    st.write("• **André Nobre**")
+    st.write("• **Diogo Ramiro**")
+    st.write("• **Rodrigo Gomes**")
+    st.markdown("---")
+    st.caption("Projeto de Inteligência Artificial")
+
+# 2. Configurar a API da Inteligência Artificial
+CHAVE_PADRAO = "AQ.Ab8RN6Kt09HcS6zHaYruOmKgtA2r9_QOaLErq7kJiW9QJrcHug"
+
+# Tenta carregar dos Secrets do Streamlit Cloud; se não existir, usa a chave padrão
+if "GEMINI_API_KEY" in st.secrets:
+    CHAVE_API = str(st.secrets["GEMINI_API_KEY"]).strip().replace('"', '').replace("'", "")
+else:
+    CHAVE_API = CHAVE_PADRAO.strip()
 
 genai.configure(api_key=CHAVE_API)
 
-# 3. O "System Prompt" (Instrução de personalidade de PLN)
+# 3. O "System Prompt" (Instrução de personalidade)
 instrucao_sistema = """
 Tu és um chef de cozinha português muito simpático e focado em evitar o desperdício alimentar.
 Regras:
@@ -36,7 +49,6 @@ def obter_modelo_funcional():
         "gemini-2.0-flash-lite",
     ]
     
-    # Procura modelos adicionais associados à tua conta
     try:
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
@@ -46,7 +58,6 @@ def obter_modelo_funcional():
     except Exception:
         pass
 
-    # Testa qual o primeiro modelo a responder sem erros de quota/404
     for nome_modelo in candidatos:
         try:
             m = genai.GenerativeModel(model_name=nome_modelo)
@@ -78,12 +89,10 @@ for msg in st.session_state.mensagens_ecra:
 # 6. Caixa de texto para o utilizador escrever
 if texto_utilizador := st.chat_input("Ex: Tenho 2 ovos, queijo e tomate..."):
     
-    # Mostrar a mensagem do utilizador
     with st.chat_message("user"):
         st.markdown(texto_utilizador)
     st.session_state.mensagens_ecra.append({"role": "user", "content": texto_utilizador})
 
-    # Enviar mensagem para o Chef IA
     with st.chat_message("assistant"):
         with st.spinner("O Chef está a pensar..."):
             try:
