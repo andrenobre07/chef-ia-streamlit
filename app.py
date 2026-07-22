@@ -12,7 +12,7 @@ st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
 # Barra Lateral (Sidebar) com informação do projeto
 with st.sidebar:
-    st.header("👥 Grupo de Trabalho 👥")
+    st.header("👥 Grupo de Trabalho")
     st.write("• **André Nobre**")
     st.write("• **Diogo Ramiro**")
     st.write("• **Rodrigo Gomes**")
@@ -27,22 +27,40 @@ else:
     st.error("⚠️ A chave da API não foi encontrada nos Secrets do Streamlit!")
     st.stop()
 
-# 3. O "System Prompt" (Instrução com regra para esconder o raciocínio)
+# 3. O "System Prompt" (Instrução com regra rigorosa contra rascunhos)
 instrucao_sistema = """
 Tu és um chef de cozinha português muito simpático e focado em evitar o desperdício alimentar.
-Regras:
-1. Só podes responder a perguntas sobre comida, receitas e ingredientes.
-2. Se o utilizador perguntar sobre outros temas (futebol, política, tempo, etc.), recusa educadamente e diz que a tua especialidade são apenas os tachos e panelas.
-3. Dá respostas curtas, estruturadas e fáceis de ler (usa bullet points).
-4. IMPORTANTE: NUNCA exibas o teu raciocínio interno, reflexões ou pensamentos. Apresenta APENAS e DIRETA a resposta final ao utilizador.
+
+REGRAS OBRIGATÓRIAS:
+1. Responde APENAS sobre comida, receitas e ingredientes.
+2. NUNCA escrevas rascunhos, planos, "User input:", "Persona:", "Rules:", "Goal:", "Drafting content:" nem blocos de pensamento.
+3. Começa SEMPRE a tua resposta diretamente com a saudação ao utilizador (ex: "Olá! Com esses ingredientes...").
+4. Dá respostas curtas, estruturadas e fáceis de ler (usa bullet points).
 """
 
-# Função para remover automaticamente blocos de pensamento/raciocínio
+# Função para filtrar e remover qualquer rascunho de pensamento/planeamento
 def limpar_pensamentos(texto: str) -> str:
-    # Remove tags do tipo <think>...</think> se o modelo as gerar
+    # 1. Se o modelo incluir o marcador de rascunho "Drafting content:", pega apenas no texto final
+    if "Drafting content:" in texto:
+        texto = texto.split("Drafting content:")[-1]
+    
+    # 2. Remove tags <think>...</think>
     texto_limpo = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
-    texto_limpo = re.sub(r'Thought:.*?\n\n', '', texto_limpo, flags=re.DOTALL)
-    return texto_limpo.strip()
+    
+    # 3. Elimina linhas que pertençam à estrutura interna de raciocínio
+    prefixos_para_remover = [
+        "User input:", "Persona:", "Rules:", "Goal:", "Option 1:", "Option 2:", 
+        "Option 3:", "Tone:", "Structure:", "Thinking Process:", "Only food?",
+        "Short/Structured?", "No internal thoughts?", "Portuguese persona?"
+    ]
+    
+    linhas = texto_limpo.split('\n')
+    linhas_finais = [
+        linha for linha in linhas 
+        if not any(linha.strip().startswith(p) for p in prefixos_para_remover)
+    ]
+    
+    return '\n'.join(linhas_finais).strip()
 
 # 4. Função para testar e encontrar automaticamente um modelo funcional
 @st.cache_resource
@@ -104,7 +122,7 @@ if texto_utilizador := st.chat_input("Ex: Tenho 2 ovos, queijo e tomate..."):
             try:
                 resposta = st.session_state.chat.send_message(texto_utilizador)
                 
-                # Aplica o filtro de pensamentos antes de mostrar na tela
+                # Filtra e limpa o texto antes de o exibir no ecrã
                 texto_final = limpar_pensamentos(resposta.text)
                 
                 st.markdown(texto_final)
