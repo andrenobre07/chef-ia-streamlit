@@ -1,4 +1,3 @@
-import re
 import streamlit as st
 import google.generativeai as genai
 
@@ -12,7 +11,7 @@ st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
 # Barra Lateral (Sidebar) com informação do projeto
 with st.sidebar:
-    st.header("👥 Grupo de Trabalho 👥")
+    st.header("👥 Grupo de Trabalho")
     st.write("• **André Nobre**")
     st.write("• **Diogo Ramiro**")
     st.write("• **Rodrigo Gomes**")
@@ -27,40 +26,38 @@ else:
     st.error("⚠️ A chave da API não foi encontrada nos Secrets do Streamlit!")
     st.stop()
 
-# 3. O "System Prompt" (Instrução com regra rigorosa contra rascunhos)
+# 3. O "System Prompt" (Direto e sem desencadear autoanálises em inglês)
 instrucao_sistema = """
-Tu és um chef de cozinha português muito simpático e focado em evitar o desperdício alimentar.
+Tu és o Chef IA, um chef de cozinha português muito simpático e focado em evitar o desperdício alimentar.
 
-REGRAS OBRIGATÓRIAS:
-1. Responde APENAS sobre comida, receitas e ingredientes.
-2. NUNCA escrevas rascunhos, planos, "User input:", "Persona:", "Rules:", "Goal:", "Drafting content:" nem blocos de pensamento.
-3. Começa SEMPRE a tua resposta diretamente com a saudação ao utilizador (ex: "Olá! Com esses ingredientes...").
-4. Dá respostas curtas, estruturadas e fáceis de ler (usa bullet points).
+Directrizes:
+- Responde APENAS sobre culinária, receitas e aproveitamento de ingredientes.
+- Começa SEMPRE a tua resposta com uma saudação simpática em português (ex: "Olá!").
+- Dá sugestões práticas e organizadas em tópicos (bullet points).
+- Responde diretamente ao utilizador sem acrescentar notas técnicas ou análises.
 """
 
-# Função para filtrar e remover qualquer rascunho de pensamento/planeamento
+# Função que isola a resposta final e elimina todo o raciocínio/rascunhos em inglês
 def limpar_pensamentos(texto: str) -> str:
-    # 1. Se o modelo incluir o marcador de rascunho "Drafting content:", pega apenas no texto final
-    if "Drafting content:" in texto:
-        texto = texto.split("Drafting content:")[-1]
+    # Se o modelo gerou a secção "Revised Version:", extrai o conteúdo a partir daí
+    if "Revised Version:" in texto:
+        texto = texto.split("Revised Version:")[-1]
     
-    # 2. Remove tags <think>...</think>
-    texto_limpo = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
+    # A resposta final do Chef começa sempre pela saudação "Olá"
+    if "Olá" in texto:
+        partes = texto.split("Olá")
+        return ("Olá" + partes[-1]).strip()
     
-    # 3. Elimina linhas que pertençam à estrutura interna de raciocínio
-    prefixos_para_remover = [
-        "User input:", "Persona:", "Rules:", "Goal:", "Option 1:", "Option 2:", 
-        "Option 3:", "Tone:", "Structure:", "Thinking Process:", "Only food?",
-        "Short/Structured?", "No internal thoughts?", "Portuguese persona?"
+    # Filtro secundário de segurança para termos de raciocínio
+    termos_lixo = [
+        "User input:", "Role:", "Constraints:", "Goal:", "Option 1:", "Option 2:", 
+        "Option 3:", "Greeting:", "Structure:", "Does it meet", "Only food?",
+        "No meta-text?", "Starts with greeting?", "Short/structured?",
+        "Drafting content:", "(Wait,", "(I should", "Thinking Process:"
     ]
     
-    linhas = texto_limpo.split('\n')
-    linhas_finais = [
-        linha for linha in linhas 
-        if not any(linha.strip().startswith(p) for p in prefixos_para_remover)
-    ]
-    
-    return '\n'.join(linhas_finais).strip()
+    linhas = [l for l in texto.split('\n') if not any(t in l for t in termos_lixo)]
+    return '\n'.join(linhas).strip()
 
 # 4. Função para testar e encontrar automaticamente um modelo funcional
 @st.cache_resource
@@ -122,7 +119,7 @@ if texto_utilizador := st.chat_input("Ex: Tenho 2 ovos, queijo e tomate..."):
             try:
                 resposta = st.session_state.chat.send_message(texto_utilizador)
                 
-                # Filtra e limpa o texto antes de o exibir no ecrã
+                # Extrai limpa e exclusivamente a resposta final
                 texto_final = limpar_pensamentos(resposta.text)
                 
                 st.markdown(texto_final)
