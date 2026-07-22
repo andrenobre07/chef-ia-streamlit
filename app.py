@@ -11,23 +11,20 @@ st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
 # Barra Lateral (Sidebar) com informação do projeto
 with st.sidebar:
-    st.header("👥 Grupo de Trabalho 👥")
+    st.header("👥 Grupo de Trabalho")
     st.write("• **André Nobre**")
     st.write("• **Diogo Ramiro**")
     st.write("• **Rodrigo Gomes**")
     st.markdown("---")
     st.caption("Projeto de Inteligência Artificial")
 
-# 2. Configurar a API da Inteligência Artificial
-CHAVE_PADRAO = "AQ.Ab8RN6Kt09HcS6zHaYruOmKgtA2r9_QOaLErq7kJiW9QJrcHug"
-
-# Tenta carregar dos Secrets do Streamlit Cloud; se não existir, usa a chave padrão
+# 2. Configurar a API EM SEGURANÇA (Sem chaves expostas no código)
 if "GEMINI_API_KEY" in st.secrets:
     CHAVE_API = str(st.secrets["GEMINI_API_KEY"]).strip().replace('"', '').replace("'", "")
+    genai.configure(api_key=CHAVE_API)
 else:
-    CHAVE_API = CHAVE_PADRAO.strip()
-
-genai.configure(api_key=CHAVE_API)
+    st.error("⚠️ A chave da API não foi encontrada nos Secrets do Streamlit!")
+    st.stop()
 
 # 3. O "System Prompt" (Instrução de personalidade)
 instrucao_sistema = """
