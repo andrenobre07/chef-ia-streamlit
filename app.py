@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import google.generativeai as genai
 
@@ -11,14 +12,14 @@ st.write("Diz-me o que tens no frigorífico e eu crio uma receita!")
 
 # Barra Lateral (Sidebar) com informação do projeto
 with st.sidebar:
-    st.header("👥 Grupo de Trabalho")
+    st.header("👥 Grupo de Trabalho 👥")
     st.write("• **André Nobre**")
     st.write("• **Diogo Ramiro**")
     st.write("• **Rodrigo Gomes**")
     st.markdown("---")
     st.caption("Projeto de Inteligência Artificial")
 
-# 2. Configurar a API EM SEGURANÇA (Sem chaves expostas no código)
+# 2. Configurar a API em segurança via Secrets
 if "GEMINI_API_KEY" in st.secrets:
     CHAVE_API = str(st.secrets["GEMINI_API_KEY"]).strip().replace('"', '').replace("'", "")
     genai.configure(api_key=CHAVE_API)
@@ -26,14 +27,22 @@ else:
     st.error("⚠️ A chave da API não foi encontrada nos Secrets do Streamlit!")
     st.stop()
 
-# 3. O "System Prompt" (Instrução de personalidade)
+# 3. O "System Prompt" (Instrução com regra para esconder o raciocínio)
 instrucao_sistema = """
 Tu és um chef de cozinha português muito simpático e focado em evitar o desperdício alimentar.
 Regras:
 1. Só podes responder a perguntas sobre comida, receitas e ingredientes.
 2. Se o utilizador perguntar sobre outros temas (futebol, política, tempo, etc.), recusa educadamente e diz que a tua especialidade são apenas os tachos e panelas.
 3. Dá respostas curtas, estruturadas e fáceis de ler (usa bullet points).
+4. IMPORTANTE: NUNCA exibas o teu raciocínio interno, reflexões ou pensamentos. Apresenta APENAS e DIRETA a resposta final ao utilizador.
 """
+
+# Função para remover automaticamente blocos de pensamento/raciocínio
+def limpar_pensamentos(texto: str) -> str:
+    # Remove tags do tipo <think>...</think> se o modelo as gerar
+    texto_limpo = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
+    texto_limpo = re.sub(r'Thought:.*?\n\n', '', texto_limpo, flags=re.DOTALL)
+    return texto_limpo.strip()
 
 # 4. Função para testar e encontrar automaticamente um modelo funcional
 @st.cache_resource
@@ -94,7 +103,11 @@ if texto_utilizador := st.chat_input("Ex: Tenho 2 ovos, queijo e tomate..."):
         with st.spinner("O Chef está a pensar..."):
             try:
                 resposta = st.session_state.chat.send_message(texto_utilizador)
-                st.markdown(resposta.text)
-                st.session_state.mensagens_ecra.append({"role": "assistant", "content": resposta.text})
+                
+                # Aplica o filtro de pensamentos antes de mostrar na tela
+                texto_final = limpar_pensamentos(resposta.text)
+                
+                st.markdown(texto_final)
+                st.session_state.mensagens_ecra.append({"role": "assistant", "content": texto_final})
             except Exception as e:
                 st.error(f"Erro na resposta: {e}")
